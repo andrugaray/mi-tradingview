@@ -5,215 +5,123 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Mi TradingView Exclusivo - Sin Límites</title>
   <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
     body, html {
-      width: 100%; height: 100%;
+      width: 100%;
+      height: 100%;
       background-color: #131722;
-      font-family: Arial, sans-serif;
-      color: #d1d4dc;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
       overflow: hidden;
     }
     .header {
-      height: 40px;
+      height: 38px;
       background-color: #1e222d;
       border-bottom: 1px solid #2a2e39;
       display: flex;
       align-items: center;
       padding: 0 16px;
       font-size: 13px;
-      font-weight: bold;
+      font-weight: 600;
       color: #2962ff;
+      letter-spacing: 0.5px;
     }
     .grid-container {
       display: grid;
       grid-template-columns: 1fr 1fr;
       grid-template-rows: 1fr 1fr;
       width: 100vw;
-      height: calc(100vh - 40px);
+      height: calc(100vh - 38px);
       gap: 2px;
       background-color: #2a2e39;
     }
     .chart-card {
-      position: relative;
       width: 100%;
       height: 100%;
       background-color: #131722;
-      display: flex;
-      flex-direction: column;
+      position: relative;
     }
-    .chart-title {
-      position: absolute;
-      top: 8px;
-      left: 12px;
-      z-index: 10;
-      font-size: 11px;
-      font-weight: bold;
-      background: rgba(19, 23, 34, 0.85);
-      padding: 4px 8px;
-      border-radius: 4px;
-      border: 1px solid #2a2e39;
-      pointer-events: none;
+    .tradingview-widget-container {
+      width: 100%;
+      height: 100%;
     }
-    .chart-container {
+    .tradingview-widget-container__widget {
       width: 100%;
       height: 100%;
     }
   </style>
-
-  <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
   <div class="header">
-    <span>MI TRADINGVIEW EXCLUSIVO - SIN LÍMITES DE INDICADORES</span>
+    <span>MI TRADINGVIEW EXCLUSIVO (CONEXIÓN OFICIAL SIN LÍMITES DE HISTORIAL)</span>
   </div>
 
   <div class="grid-container">
+    <!-- Ventana 1: BTC/USDT -->
     <div class="chart-card">
-      <div class="chart-title">BTC/USDT (Velas + EMA 20 + EMA 50 + EMA 200 + Volumen)</div>
-      <div id="chart1" class="chart-container"></div>
+      <div class="tradingview-widget-container">
+        <div id="tv_chart_btc" class="tradingview-widget-container__widget"></div>
+      </div>
     </div>
+
+    <!-- Ventana 2: ETH/USDT -->
     <div class="chart-card">
-      <div class="chart-title">ETH/USDT (Velas + Tiempo Real)</div>
-      <div id="chart2" class="chart-container"></div>
+      <div class="tradingview-widget-container">
+        <div id="tv_chart_eth" class="tradingview-widget-container__widget"></div>
+      </div>
     </div>
+
+    <!-- Ventana 3: SOL/USDT -->
     <div class="chart-card">
-      <div class="chart-title">SOL/USDT (Velas + Tiempo Real)</div>
-      <div id="chart3" class="chart-container"></div>
+      <div class="tradingview-widget-container">
+        <div id="tv_chart_sol" class="tradingview-widget-container__widget"></div>
+      </div>
     </div>
+
+    <!-- Ventana 4: BNB/USDT -->
     <div class="chart-card">
-      <div class="chart-title">BNB/USDT (Velas + Tiempo Real)</div>
-      <div id="chart4" class="chart-container"></div>
+      <div class="tradingview-widget-container">
+        <div id="tv_chart_bnb" class="tradingview-widget-container__widget"></div>
+      </div>
     </div>
   </div>
 
-  <script>
-    async function crearGraficoCustom(elementId, symbol, intervalBinance) {
-      const container = document.getElementById(elementId);
-      const chart = LightweightCharts.createChart(container, {
-        layout: {
-          backgroundColor: '#131722',
-          textColor: '#d1d4dc',
-        },
-        grid: {
-          vertLines: { color: '#1f2432' },
-          horzLines: { color: '#1f2432' },
-        },
-        crosshair: {
-          mode: LightweightCharts.CrosshairMode.Normal,
-        },
-        timeScale: {
-          timeVisible: true,
-          secondsVisible: true,
-        },
+  <!-- Script Oficial Widget de TradingView -->
+  <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
+  <script type="text/javascript">
+    function crearWidget(containerId, symbolPair) {
+      new TradingView.widget({
+        "autosize": true,
+        "symbol": "BINANCE:" + symbolPair,
+        "interval": "1",
+        "timezone": "Etc/UTC",
+        "theme": "dark",
+        "style": "1",
+        "locale": "es",
+        "toolbar_bg": "#f1f3f6",
+        "enable_publishing": false,
+        "hide_legend": false,
+        "save_image": false,
+        "container_id": containerId,
+        "studies": [
+          "STD;EMA@tv-basicstudies", // EMA 1 (se puede configurar dentro del gráfico)
+          "STD;EMA@tv-basicstudies", // EMA 2
+          "STD;EMA@tv-basicstudies"  // EMA 3
+        ]
       });
-
-      const candlestickSeries = chart.addCandlestickSeries({
-        upColor: '#089981',
-        downColor: '#f23645',
-        borderDownColor: '#f23645',
-        borderUpColor: '#089981',
-        wickDownColor: '#f23645',
-        wickUpColor: '#089981',
-      });
-
-      // Servidores con fallback (Si Binance principal falla por CORS, intenta servidor secundario público)
-      const endpoints = [
-        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`,
-        `https://api.binance.us/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`,
-        `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`
-      ];
-
-      let data = null;
-      for (let url of endpoints) {
-        try {
-          let res = await fetch(url);
-          if (res.ok) {
-            data = await res.json();
-            if (Array.isArray(data) && data.length > 0) break;
-          }
-        } catch (e) {
-          console.warn("Reintentando endpoint alternativo...");
-        }
-      }
-
-      if (data && Array.isArray(data)) {
-        const cdata = data.map(d => ({
-          time: Math.floor(d[0] / 1000),
-          open: parseFloat(d[1]),
-          high: parseFloat(d[2]),
-          low: parseFloat(d[3]),
-          close: parseFloat(d[4]),
-        }));
-
-        // Cargamos las 500 velas en el gráfico
-        candlestickSeries.setData(cdata);
-
-        // Si es BTC (chart1), agregamos las 3 EMAs y Volumen
-        if (elementId === 'chart1') {
-          const ema20 = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
-          ema20.setData(calcularEMA(cdata, 20));
-
-          const ema50 = chart.addLineSeries({ color: '#ffb703', lineWidth: 1, title: 'EMA 50' });
-          ema50.setData(calcularEMA(cdata, 50));
-
-          const ema200 = chart.addLineSeries({ color: '#f23645', lineWidth: 2, title: 'EMA 200' });
-          ema200.setData(calcularEMA(cdata, 200));
-
-          const volumeSeries = chart.addHistogramSeries({
-            color: '#26a69a',
-            priceFormat: { type: 'volume' },
-            priceScaleId: '',
-            scaleMargins: { top: 0.8, bottom: 0 },
-          });
-          const volumeData = data.map(d => ({
-            time: Math.floor(d[0] / 1000),
-            value: parseFloat(d[5]),
-            color: parseFloat(d[4]) >= parseFloat(d[1]) ? '#08998180' : '#f2364580',
-          }));
-          volumeSeries.setData(volumeData);
-        }
-
-        chart.timeScale().fitContent();
-      }
-
-      // Tiempo real vía WebSocket
-      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${intervalBinance}`);
-      ws.onmessage = (event) => {
-        const message = JSON.parse(event.data);
-        const candle = message.k;
-        candlestickSeries.update({
-          time: Math.floor(candle.t / 1000),
-          open: parseFloat(candle.o),
-          high: parseFloat(candle.h),
-          low: parseFloat(candle.l),
-          close: parseFloat(candle.c),
-        });
-      };
-
-      new ResizeObserver(() => {
-        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
-      }).observe(container);
     }
 
-    function calcularEMA(data, period) {
-      const k = 2 / (period + 1);
-      let emaArray = [];
-      let ema = data[0].close;
-
-      for (let i = 0; i < data.length; i++) {
-        ema = data[i].close * k + ema * (1 - k);
-        emaArray.push({ time: data[i].time, value: ema });
-      }
-      return emaArray;
-    }
-
-    // Inicializar
-    crearGraficoCustom('chart1', 'BTCUSDT', '1m');
-    crearGraficoCustom('chart2', 'ETHUSDT', '1m');
-    crearGraficoCustom('chart3', 'SOLUSDT', '1m');
-    crearGraficoCustom('chart4', 'BNBUSDT', '1m');
+    // Carga de las 4 ventanas
+    crearWidget("tv_chart_btc", "BTCUSDT");
+    crearWidget("tv_chart_eth", "ETHUSDT");
+    crearWidget("tv_chart_sol", "SOLUSDT");
+    crearWidget("tv_chart_bnb", "BNBUSDT");
   </script>
 
 </body>
 </html>
+    
