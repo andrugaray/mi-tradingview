@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Mi TradingView Exclusivo - Sin Límites</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body, html {
+      width: 100%; height: 100%;
+      background-color: #131722;
+      font-family: Arial, sans-serif;
+      color: #d1d4dc;
+      overflow: hidden;
+    }
+    .header {
+      height: 40px;
+      background-color: #1e222d;
+      border-bottom: 1px solid #2a2e39;
+      display: flex;
+      align-items: center;
+      padding: 0 16px;
+      font-size: 13px;
+      font-weight: bold;
+      color: #2962ff;
+    }
+    .grid-container {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      grid-template-rows: 1fr 1fr;
+      width: 100vw;
+      height: calc(100vh - 40px);
+      gap: 2px;
+      background-color: #2a2e39;
+    }
+    .chart-card {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      background-color: #131722;
+      display: flex;
+      flex-direction: column;
+    }
+    .chart-title {
+      position: absolute;
+      top: 8px;
+      left: 12px;
+      z-index: 10;
+      font-size: 11px;
+      font-weight: bold;
+      background: rgba(19, 23, 34, 0.85);
+      padding: 4px 8px;
+      border-radius: 4px;
+      border: 1px solid #2a2e39;
+      pointer-events: none;
+    }
+    .chart-container {
+      width: 100%;
+      height: 100%;
+    }
+  </style>
+  <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
+</head>
+<body>
+
+  <div class="header">
+    <span>MI TRADINGVIEW EXCLUSIVO - LIBRERÍA INDEPENDIENTE SIN LÍMITES</span>
+  </div>
+
+  <div class="grid-container">
+    <div class="chart-card">
+      <div class="chart-title">BTC/USDT (Velas + EMA 20 + EMA 50 + EMA 200)</div>
+      <div id="chart1" class="chart-container"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">ETH/USDT (Tiempo Real)</div>
+      <div id="chart2" class="chart-container"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">SOL/USDT (Tiempo Real)</div>
+      <div id="chart3" class="chart-container"></div>
+    </div>
+    <div class="chart-card">
+      <div class="chart-title">BNB/USDT (Tiempo Real)</div>
+      <div id="chart4" class="chart-container"></div>
+    </div>
+  </div>
+
+  <script>
+    function crearGraficoCustom(elementId, baseSymbol, quoteSymbol) {
+      const container = document.getElementById(elementId);
+      const chart = LightweightCharts.createChart(container, {
+        layout: {
+          backgroundColor: '#131722',
+          textColor: '#d1d4dc',
+        },
+        grid: {
+          vertLines: { color: '#1f2432' },
+          horzLines: { color: '#1f2432' },
+        },
+        crosshair: {
+          mode: LightweightCharts.CrosshairMode.Normal,
+        },
+        timeScale: {
+          timeVisible: true,
+          secondsVisible: true,
+        },
+      });
+
+      const candlestickSeries = chart.addCandlestickSeries({
+        upColor: '#089981',
+        downColor: '#f23645',
+        borderDownColor: '#f23645',
+        borderUpColor: '#089981',
+        wickDownColor: '#f23645',
+        wickUpColor: '#089981',
+      });
+
+      // CARGA DE HISTORIAL DIRECTO DESDE CRYPTOCOMPARE (Soporta peticiones desde archivo local sin bloqueo CORS)
+      const urlHistorial = `https://min-api.cryptocompare.com/data/v2/histoMinute?fsym=${baseSymbol}&tsym=${quoteSymbol}&limit=300`;
+
+      fetch(urlHistorial)
+        .then(response => response.json())
+        .then(data => {
+          if (data && data.Data && data.Data.Data) {
+            const rawData = data.Data.Data;
+            const cdata = rawData.map(d => ({
+              time: d.time,
+              open: d.open,
+              high: d.high,
+              low: d.low,
+              close: d.close,
+            }));
+
+            // Cargamos el historial de velas
+            candlestickSeries.setData(cdata);
+
+            // Si es el primer gráfico, calculamos y agregamos las 3 EMAs sin límites
+            if (elementId === 'chart1') {
+              const ema20Series = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
+              ema20Series.setData(calcularEMA(cdata, 20));
+
+              const ema50Series = chart.addLineSeries({ color: '#ffb703', lineWidth: 1, title: 'EMA 50' });
+              ema50Series.setData(calcularEMA(cdata, 50));
+
+              const ema200Series = chart.addLineSeries({ color: '#f23645', lineWidth: 2, title: 'EMA 200' });
+              ema200Series.setData(calcularEMA(cdata, 200));
+            }
+
+            // Ajustamos el zoom automáticamente para ver todas las velas cargadas
+            chart.timeScale().fitContent();
+          }
+        })
+        .catch(err => console.error("Error al cargar historial:", err));
+
+      // CONEXIÓN TIEMPO REAL VÍA WEBSOCKET (BINANCE)
+      const pairSymbol = (baseSymbol + quoteSymbol).toLowerCase();
+      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pairSymbol}@kline_1m`);
+
+      ws.onmessage = (event) => {
+        const message = JSON.parse(event.data);
+        const candle = message.k;
+        candlestickSeries.update({
+          time: Math.floor(candle.t / 1000),
+          open: parseFloat(candle.o),
+          high: parseFloat(candle.h),
+          low: parseFloat(candle.l),
+          close: parseFloat(candle.c),
+        });
+      };
+
+      // Redimensionado automático de cada panel
+      new ResizeObserver(() => {
+        chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
+      }).observe(container);
+    }
+
+    // Algoritmo para el cálculo de Media Móvil Exponencial (EMA)
+    function calcularEMA(data, period) {
+      const k = 2 / (period + 1);
+      let emaArray = [];
+      let ema = data[0].close;
+
+      for (let i = 0; i < data.length; i++) {
+        ema = data[i].close * k + ema * (1 - k);
+        emaArray.push({ time: data[i].time, value: ema });
+      }
+      return emaArray;
+    }
+
+    // Inicializamos las 4 ventanas
+    crearGraficoCustom('chart1', 'BTC', 'USDT');
+    crearGraficoCustom('chart2', 'ETH', 'USDT');
+    crearGraficoCustom('chart3', 'SOL', 'USDT');
+    crearGraficoCustom('chart4', 'BNB', 'USDT');
+  </script>
+
+</body>
+</html>
