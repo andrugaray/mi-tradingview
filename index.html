@@ -60,7 +60,6 @@
     }
   </style>
 
-  <!-- Librería Oficial de Gráficos Independientes de TradingView -->
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
@@ -71,7 +70,7 @@
 
   <div class="grid-container">
     <div class="chart-card">
-      <div class="chart-title">BTC/USDT (Sin Límites: Velas + EMA 20 + EMA 50 + EMA 200 + Volumen)</div>
+      <div class="chart-title">BTC/USDT (Velas + EMA 20 + EMA 50 + EMA 200 + Volumen)</div>
       <div id="chart1" class="chart-container"></div>
     </div>
     <div class="chart-card">
@@ -89,7 +88,7 @@
   </div>
 
   <script>
-    function crearGraficoCustom(elementId, symbol, intervalBinance) {
+    async function crearGraficoCustom(elementId, symbol, intervalBinance) {
       const container = document.getElementById(elementId);
       const chart = LightweightCharts.createChart(container, {
         layout: {
@@ -109,7 +108,6 @@
         },
       });
 
-      // Serie de Velas Japonesas
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: '#089981',
         downColor: '#f23645',
@@ -119,66 +117,71 @@
         wickUpColor: '#089981',
       });
 
-      // Petición del historial de 500 velas pasadas
-      const binanceApiUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`;
+      // Servidores con fallback (Si Binance principal falla por CORS, intenta servidor secundario público)
+      const endpoints = [
+        `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`,
+        `https://api.binance.us/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`,
+        `https://data-api.binance.vision/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`
+      ];
 
-      fetch(binanceApiUrl)
-        .then(response => response.json())
-        .then(data => {
-          if (Array.isArray(data)) {
-            const cdata = data.map(d => ({
-              time: Math.floor(d[0] / 1000), // Convertimos milisegundos a segundos Unix
-              open: parseFloat(d[1]),
-              high: parseFloat(d[2]),
-              low: parseFloat(d[3]),
-              close: parseFloat(d[4]),
-            }));
-
-            // Carga masiva del historial
-            candlestickSeries.setData(cdata);
-
-            // MÚLTIPLES INDICADORES EN EL GRÁFICO 1 (BTC)
-            if (elementId === 'chart1') {
-              // EMA 20
-              const ema20Series = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
-              ema20Series.setData(calcularEMA(cdata, 20));
-
-              // EMA 50
-              const ema50Series = chart.addLineSeries({ color: '#ffb703', lineWidth: 1, title: 'EMA 50' });
-              ema50Series.setData(calcularEMA(cdata, 50));
-
-              // EMA 200
-              const ema200Series = chart.addLineSeries({ color: '#f23645', lineWidth: 2, title: 'EMA 200' });
-              ema200Series.setData(calcularEMA(cdata, 200));
-
-              // Histogramas de Volumen
-              const volumeSeries = chart.addHistogramSeries({
-                color: '#26a69a',
-                priceFormat: { type: 'volume' },
-                priceScaleId: '',
-                scaleMargins: { top: 0.8, bottom: 0 },
-              });
-              const volumeData = data.map(d => ({
-                time: Math.floor(d[0] / 1000),
-                value: parseFloat(d[5]),
-                color: parseFloat(d[4]) >= parseFloat(d[1]) ? '#08998180' : '#f2364580',
-              }));
-              volumeSeries.setData(volumeData);
-            }
-
-            // Auto-encuadrar todo el historial en pantalla
-            chart.timeScale().fitContent();
+      let data = null;
+      for (let url of endpoints) {
+        try {
+          let res = await fetch(url);
+          if (res.ok) {
+            data = await res.json();
+            if (Array.isArray(data) && data.length > 0) break;
           }
-        })
-        .catch(err => console.error("Error cargando historial de Binance:", err));
+        } catch (e) {
+          console.warn("Reintentando endpoint alternativo...");
+        }
+      }
 
-      // CONEXIÓN TIEMPO REAL VÍA WEBSOCKET
+      if (data && Array.isArray(data)) {
+        const cdata = data.map(d => ({
+          time: Math.floor(d[0] / 1000),
+          open: parseFloat(d[1]),
+          high: parseFloat(d[2]),
+          low: parseFloat(d[3]),
+          close: parseFloat(d[4]),
+        }));
+
+        // Cargamos las 500 velas en el gráfico
+        candlestickSeries.setData(cdata);
+
+        // Si es BTC (chart1), agregamos las 3 EMAs y Volumen
+        if (elementId === 'chart1') {
+          const ema20 = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
+          ema20.setData(calcularEMA(cdata, 20));
+
+          const ema50 = chart.addLineSeries({ color: '#ffb703', lineWidth: 1, title: 'EMA 50' });
+          ema50.setData(calcularEMA(cdata, 50));
+
+          const ema200 = chart.addLineSeries({ color: '#f23645', lineWidth: 2, title: 'EMA 200' });
+          ema200.setData(calcularEMA(cdata, 200));
+
+          const volumeSeries = chart.addHistogramSeries({
+            color: '#26a69a',
+            priceFormat: { type: 'volume' },
+            priceScaleId: '',
+            scaleMargins: { top: 0.8, bottom: 0 },
+          });
+          const volumeData = data.map(d => ({
+            time: Math.floor(d[0] / 1000),
+            value: parseFloat(d[5]),
+            color: parseFloat(d[4]) >= parseFloat(d[1]) ? '#08998180' : '#f2364580',
+          }));
+          volumeSeries.setData(volumeData);
+        }
+
+        chart.timeScale().fitContent();
+      }
+
+      // Tiempo real vía WebSocket
       const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${intervalBinance}`);
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
         const candle = message.k;
-        
-        // Actualizamos la vela actual asegurando tiempo en segundos Unix
         candlestickSeries.update({
           time: Math.floor(candle.t / 1000),
           open: parseFloat(candle.o),
@@ -188,13 +191,11 @@
         });
       };
 
-      // Redimensionamiento dinámico
       new ResizeObserver(() => {
         chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       }).observe(container);
     }
 
-    // Algoritmo para el cálculo de Medias Móviles Exponenciales (EMA)
     function calcularEMA(data, period) {
       const k = 2 / (period + 1);
       let emaArray = [];
@@ -207,7 +208,7 @@
       return emaArray;
     }
 
-    // Inicializamos las 4 ventanas
+    // Inicializar
     crearGraficoCustom('chart1', 'BTCUSDT', '1m');
     crearGraficoCustom('chart2', 'ETHUSDT', '1m');
     crearGraficoCustom('chart3', 'SOLUSDT', '1m');
@@ -216,5 +217,3 @@
 
 </body>
 </html>
-     
-    
