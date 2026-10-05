@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Mi TradingView Exclusivo - Sin L�mites</title>
+  <title>Mi TradingView Exclusivo - Sin Límites</title>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body, html {
@@ -59,35 +59,37 @@
       height: 100%;
     }
   </style>
+
+  <!-- Librería Oficial de Gráficos Independientes de TradingView -->
   <script src="https://unpkg.com/lightweight-charts@3.8.0/dist/lightweight-charts.standalone.production.js"></script>
 </head>
 <body>
 
   <div class="header">
-    <span>MI TRADINGVIEW EXCLUSIVO - LIBRER�A INDEPENDIENTE SIN L�MITES</span>
+    <span>MI TRADINGVIEW EXCLUSIVO - SIN LÍMITES DE INDICADORES</span>
   </div>
 
   <div class="grid-container">
     <div class="chart-card">
-      <div class="chart-title">BTC/USDT (Velas + EMA 20 + EMA 50 + EMA 200)</div>
+      <div class="chart-title">BTC/USDT (Sin Límites: Velas + EMA 20 + EMA 50 + EMA 200 + Volumen)</div>
       <div id="chart1" class="chart-container"></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">ETH/USDT (Tiempo Real)</div>
+      <div class="chart-title">ETH/USDT (Velas + Tiempo Real)</div>
       <div id="chart2" class="chart-container"></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">SOL/USDT (Tiempo Real)</div>
+      <div class="chart-title">SOL/USDT (Velas + Tiempo Real)</div>
       <div id="chart3" class="chart-container"></div>
     </div>
     <div class="chart-card">
-      <div class="chart-title">BNB/USDT (Tiempo Real)</div>
+      <div class="chart-title">BNB/USDT (Velas + Tiempo Real)</div>
       <div id="chart4" class="chart-container"></div>
     </div>
   </div>
 
   <script>
-    function crearGraficoCustom(elementId, baseSymbol, quoteSymbol) {
+    function crearGraficoCustom(elementId, symbol, intervalBinance) {
       const container = document.getElementById(elementId);
       const chart = LightweightCharts.createChart(container, {
         layout: {
@@ -107,6 +109,7 @@
         },
       });
 
+      // Serie de Velas Japonesas
       const candlestickSeries = chart.addCandlestickSeries({
         upColor: '#089981',
         downColor: '#f23645',
@@ -116,50 +119,66 @@
         wickUpColor: '#089981',
       });
 
-      // CARGA DE HISTORIAL DIRECTO DESDE CRYPTOCOMPARE (Soporta peticiones desde archivo local sin bloqueo CORS)
-      const urlHistorial = `https://min-api.cryptocompare.com/data/v2/histoMinute?fsym=${baseSymbol}&tsym=${quoteSymbol}&limit=300`;
+      // Petición del historial de 500 velas pasadas
+      const binanceApiUrl = `https://api.binance.com/api/v3/klines?symbol=${symbol}&interval=${intervalBinance}&limit=500`;
 
-      fetch(urlHistorial)
+      fetch(binanceApiUrl)
         .then(response => response.json())
         .then(data => {
-          if (data && data.Data && data.Data.Data) {
-            const rawData = data.Data.Data;
-            const cdata = rawData.map(d => ({
-              time: d.time,
-              open: d.open,
-              high: d.high,
-              low: d.low,
-              close: d.close,
+          if (Array.isArray(data)) {
+            const cdata = data.map(d => ({
+              time: Math.floor(d[0] / 1000), // Convertimos milisegundos a segundos Unix
+              open: parseFloat(d[1]),
+              high: parseFloat(d[2]),
+              low: parseFloat(d[3]),
+              close: parseFloat(d[4]),
             }));
 
-            // Cargamos el historial de velas
+            // Carga masiva del historial
             candlestickSeries.setData(cdata);
 
-            // Si es el primer gr�fico, calculamos y agregamos las 3 EMAs sin l�mites
+            // MÚLTIPLES INDICADORES EN EL GRÁFICO 1 (BTC)
             if (elementId === 'chart1') {
+              // EMA 20
               const ema20Series = chart.addLineSeries({ color: '#2962ff', lineWidth: 1, title: 'EMA 20' });
               ema20Series.setData(calcularEMA(cdata, 20));
 
+              // EMA 50
               const ema50Series = chart.addLineSeries({ color: '#ffb703', lineWidth: 1, title: 'EMA 50' });
               ema50Series.setData(calcularEMA(cdata, 50));
 
+              // EMA 200
               const ema200Series = chart.addLineSeries({ color: '#f23645', lineWidth: 2, title: 'EMA 200' });
               ema200Series.setData(calcularEMA(cdata, 200));
+
+              // Histogramas de Volumen
+              const volumeSeries = chart.addHistogramSeries({
+                color: '#26a69a',
+                priceFormat: { type: 'volume' },
+                priceScaleId: '',
+                scaleMargins: { top: 0.8, bottom: 0 },
+              });
+              const volumeData = data.map(d => ({
+                time: Math.floor(d[0] / 1000),
+                value: parseFloat(d[5]),
+                color: parseFloat(d[4]) >= parseFloat(d[1]) ? '#08998180' : '#f2364580',
+              }));
+              volumeSeries.setData(volumeData);
             }
 
-            // Ajustamos el zoom autom�ticamente para ver todas las velas cargadas
+            // Auto-encuadrar todo el historial en pantalla
             chart.timeScale().fitContent();
           }
         })
-        .catch(err => console.error("Error al cargar historial:", err));
+        .catch(err => console.error("Error cargando historial de Binance:", err));
 
-      // CONEXI�N TIEMPO REAL V�A WEBSOCKET (BINANCE)
-      const pairSymbol = (baseSymbol + quoteSymbol).toLowerCase();
-      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${pairSymbol}@kline_1m`);
-
+      // CONEXIÓN TIEMPO REAL VÍA WEBSOCKET
+      const ws = new WebSocket(`wss://stream.binance.com:9443/ws/${symbol.toLowerCase()}@kline_${intervalBinance}`);
       ws.onmessage = (event) => {
         const message = JSON.parse(event.data);
         const candle = message.k;
+        
+        // Actualizamos la vela actual asegurando tiempo en segundos Unix
         candlestickSeries.update({
           time: Math.floor(candle.t / 1000),
           open: parseFloat(candle.o),
@@ -169,13 +188,13 @@
         });
       };
 
-      // Redimensionado autom�tico de cada panel
+      // Redimensionamiento dinámico
       new ResizeObserver(() => {
         chart.applyOptions({ width: container.clientWidth, height: container.clientHeight });
       }).observe(container);
     }
 
-    // Algoritmo para el c�lculo de Media M�vil Exponencial (EMA)
+    // Algoritmo para el cálculo de Medias Móviles Exponenciales (EMA)
     function calcularEMA(data, period) {
       const k = 2 / (period + 1);
       let emaArray = [];
@@ -189,11 +208,13 @@
     }
 
     // Inicializamos las 4 ventanas
-    crearGraficoCustom('chart1', 'BTC', 'USDT');
-    crearGraficoCustom('chart2', 'ETH', 'USDT');
-    crearGraficoCustom('chart3', 'SOL', 'USDT');
-    crearGraficoCustom('chart4', 'BNB', 'USDT');
+    crearGraficoCustom('chart1', 'BTCUSDT', '1m');
+    crearGraficoCustom('chart2', 'ETHUSDT', '1m');
+    crearGraficoCustom('chart3', 'SOLUSDT', '1m');
+    crearGraficoCustom('chart4', 'BNBUSDT', '1m');
   </script>
 
 </body>
 </html>
+     
+    
