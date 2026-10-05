@@ -57,7 +57,7 @@
 <body>
 
   <div class="header">
-    <span>MI TRADINGVIEW EXCLUSIVO (CONEXIÓN OFICIAL SIN LÍMITES DE HISTORIAL)</span>
+    <span>MI TRADINGVIEW EXCLUSIVO - HERRAMIENTAS Y MENÚS COMPLETOS</span>
   </div>
 
   <div class="grid-container">
@@ -93,7 +93,7 @@
   <!-- Script Oficial Widget de TradingView -->
   <script type="text/javascript" src="https://s3.tradingview.com/tv.js"></script>
   <script type="text/javascript">
-    function crearWidget(containerId, symbolPair) {
+    function crearWidgetAvanzado(containerId, symbolPair) {
       new TradingView.widget({
         "autosize": true,
         "symbol": "BINANCE:" + symbolPair,
@@ -104,24 +104,26 @@
         "locale": "es",
         "toolbar_bg": "#f1f3f6",
         "enable_publishing": false,
-        "hide_legend": false,
-        "save_image": false,
+        "hide_side_toolbar": false,     // Activa la barra de herramientas de dibujo a la izquierda
+        "allow_symbol_change": true,    // Activa los menús superiores completos (temporalidades, buscar símbolos, etc.)
+        "details": true,
+        "hotlist": true,
+        "calendar": true,
         "container_id": containerId,
         "studies": [
-          "STD;EMA@tv-basicstudies", // EMA 1 (se puede configurar dentro del gráfico)
-          "STD;EMA@tv-basicstudies", // EMA 2
-          "STD;EMA@tv-basicstudies"  // EMA 3
+          "STD;EMA@tv-basicstudies",     // EMA 1
+          "STD;EMA@tv-basicstudies",     // EMA 2
+          "STD;EMA@tv-basicstudies"      // EMA 3
         ]
       });
     }
 
-    // Carga de las 4 ventanas
-    crearWidget("tv_chart_btc", "BTCUSDT");
-    crearWidget("tv_chart_eth", "ETHUSDT");
-    crearWidget("tv_chart_sol", "SOLUSDT");
-    crearWidget("tv_chart_bnb", "BNBUSDT");
+    // Inicialización de las 4 ventanas con menús
+    crearWidgetAvanzado("tv_chart_btc", "BTCUSDT");
+    crearWidgetAvanzado("tv_chart_eth", "ETHUSDT");
+    crearWidgetAvanzado("tv_chart_sol", "SOLUSDT");
+    crearWidgetAvanzado("tv_chart_bnb", "BNBUSDT");
   </script>
 
 </body>
 </html>
-    
